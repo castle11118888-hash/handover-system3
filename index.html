@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>交接管理系統｜版本B4.4.4</title>
+  <title>交接管理系統｜版本B4.4.5</title>
   <style>
     :root{
       --bg:#f4f6fb; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb;
@@ -126,7 +126,8 @@ const statuses = {
   done: { label:"已完成", cls:"ok" },
   pending_followup: { label:"待追蹤", cls:"warn" }
 };
-const storesSeed = [{id:"A",name:"A店"},{id:"B",name:"B店"},{id:"C",name:"C店"},{id:"D",name:"D店"}];
+const defaultStoreNames = { A:"寶慶", B:"B店", C:"C店", D:"D店" };
+const storesSeed = [{id:"A",name:"寶慶"},{id:"B",name:"B店"},{id:"C",name:"C店"},{id:"D",name:"D店"}];
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -200,10 +201,28 @@ const canDeleteItem = () => normalizeRole(state.profile?.role) === "admin";
 const canEditItem = () => ["admin","general_manager","store_supervisor"].includes(normalizeRole(state.profile?.role));
 const currentUserName = () => state.profile?.name || state.currentUser?.email || "";
 const profileStoreId = profile => String(profile?.storeId || profile?.store || "").replace("店","");
+const normalizeStoreName = (id, name) => {
+  const fallback = defaultStoreNames[id] || `${id}店`;
+  if(!name || name === `${id}店`) return fallback;
+  return name;
+};
 const visibleStores = () => canViewAllStores() ? state.stores : state.stores.filter(s => s.id === profileStoreId(state.profile));
 const effectiveStore = () => canViewAllStores() ? state.selectedStore : (profileStoreId(state.profile) || "A");
-const storeNameById = id => (state.stores.find(s => s.id===id)?.name || `${id}店`);
+const storeNameById = id => normalizeStoreName(id, state.stores.find(s => s.id===id)?.name);
 const canManageStores = () => normalizeRole(state.profile?.role) === "admin";
+const formatDateValue = value => {
+  if(!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if(Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+};
+const announcementReadByCurrentUser = announcement => Array.isArray(announcement?.readBy) && currentUid() ? announcement.readBy.includes(currentUid()) : false;
+const formatAnnouncementDate = announcement => {
+  const createdAt = announcement?.createdAt;
+  if(createdAt?.seconds) return formatDateValue(createdAt.seconds * 1000);
+  if(typeof createdAt?.toDate === "function") return formatDateValue(createdAt.toDate());
+  return "";
+};
 
 function dashboardRows(){
   return visibleStores().map(store => {
@@ -258,7 +277,7 @@ const historyItems = () => state.handovers
   .sort((a,b) => `${b.date}${b.shift}`.localeCompare(`${a.date}${a.shift}`));
 const visibleAnnouncements = () => state.announcements.filter(a => !a.targetStoreId || a.targetStoreId===effectiveStore() || canViewAllStores());
 const latestVisibleAnnouncement = () => visibleAnnouncements()[0] || null;
-const announcementBadgeCount = () => visibleAnnouncements().length;
+const announcementBadgeCount = () => visibleAnnouncements().filter(a => !announcementReadByCurrentUser(a)).length;
 
 function globalResults(){
   const q = state.searchText.trim().toLowerCase();
@@ -293,7 +312,7 @@ function globalResults(){
   return {stores,items,announcements,users};
 }
 const optionHtml = (arr,val) => arr.map(v => `<option value="${escapeHtml(v)}" ${String(v)===String(val)?"selected":""}>${escapeHtml(v)}</option>`).join("");
-const storeOptionsHtml = val => state.stores.map(s => `<option value="${s.id}" ${String(s.id)===String(val)?"selected":""}>${escapeHtml(s.name)}</option>`).join("");
+const storeOptionsHtml = val => state.stores.map(s => `<option value="${s.id}" ${String(s.id)===String(val)?"selected":""}>${escapeHtml(normalizeStoreName(s.id, s.name))}</option>`).join("");
 
 async function ensureProfile(user, nameFromRegister=""){
   const ref = doc(db,"users",user.uid);
@@ -316,7 +335,7 @@ async function ensureProfile(user, nameFromRegister=""){
     role:firstUser?"admin":"staff", storeId:firstUser?null:"A", active:true, createdAt:serverTimestamp()
   };
   await setDoc(ref, profile);
-  setState({ profile:{id:user.uid,...profile}, infoMessage:firstUser?"第一個註冊帳號已設為管理員。":"已註冊成功，預設為員工 A店。" });
+  setState({ profile:{id:user.uid,...profile}, infoMessage:firstUser?"第一個註冊帳號已設為管理員。":"已註冊成功，預設為員工 寶慶。" });
   subscribeData();
 }
 function subscribeData(){
@@ -336,8 +355,8 @@ function subscribeData(){
       setState({stores:storesSeed, storeDrafts:Object.fromEntries(storesSeed.map(s=>[s.id,s.name]))});
       return;
     }
-    const rows = snap.docs.map(d => ({id:d.id,...d.data()})).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-    setState({stores:rows, storeDrafts:Object.fromEntries(rows.map(s=>[s.id,s.name || `${s.id}店`]))});
+    const rows = snap.docs.map(d => ({id:d.id,...d.data(), name: normalizeStoreName(d.id, d.data().name)})).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    setState({stores:rows, storeDrafts:Object.fromEntries(rows.map(s=>[s.id,normalizeStoreName(s.id, s.name)]))});
   }));
 }
 
@@ -422,7 +441,7 @@ async function addAnnouncement(){
   if(!title || !content) return;
   await addDoc(collection(db,"announcements"),{
     title,content,targetStoreId:state.newAnnouncementStore==="all"?null:state.newAnnouncementStore,
-    createdByUid:state.currentUser.uid,createdByName:currentUserName(),createdAt:serverTimestamp()
+    createdByUid:state.currentUser.uid,createdByName:currentUserName(),createdAt:serverTimestamp(),readBy:[]
   });
   setState({newAnnouncementTitle:"",newAnnouncementContent:"",newAnnouncementStore:"all"});
 }
@@ -430,6 +449,14 @@ async function deleteAnnouncement(id){
   if(!canPostAnnouncements()) return alert("你沒有刪除公告權限");
   await deleteDoc(doc(db,"announcements",id));
 }
+async function toggleAnnouncementReadStatus(id, markRead){
+  if(!currentUid()) return;
+  await updateDoc(doc(db,"announcements",id),{
+    readBy: markRead ? arrayUnion(currentUid()) : arrayRemove(currentUid()),
+    updatedAt: serverTimestamp()
+  });
+}
+
 async function saveUserRole(uid, role, storeId, name){
   if(!canManageUsers()) return alert("只有管理員可調整帳號");
   const r = normalizeRole(role);
@@ -579,7 +606,7 @@ function renderDashboard(){
         <div>
           <div class="badge" style="margin-bottom:10px">最新公告</div>
           <div style="font-size:20px;font-weight:800">${escapeHtml(latestAnnouncement.title||"")}</div>
-          <div class="small muted" style="margin-top:6px">${escapeHtml(latestAnnouncement.createdByName||"")}｜${latestAnnouncement.targetStoreId ? escapeHtml(storeNameById(latestAnnouncement.targetStoreId)) : "全店公告"}</div>
+          <div class="small muted" style="margin-top:6px">${escapeHtml(latestAnnouncement.createdByName||"")}｜${escapeHtml(formatAnnouncementDate(latestAnnouncement)||"未提供日期")}｜${latestAnnouncement.targetStoreId ? escapeHtml(storeNameById(latestAnnouncement.targetStoreId)) : "全店公告"}</div>
           <div style="margin-top:10px;line-height:1.8">${escapeHtml(String(latestAnnouncement.content||"").slice(0,120))}${String(latestAnnouncement.content||"").length>120?"...":""}</div>
         </div>
         <button class="btn primary" onclick="switchTab('announcements')">查看公告</button>
@@ -712,7 +739,7 @@ function renderForms(){
 }
 
 function renderAnnouncements(){
-  const list = state.announcements.filter(a => !a.targetStoreId || a.targetStoreId===effectiveStore() || canViewAllStores());
+  const list = visibleAnnouncements();
   return `
   <div class="grid2">
     ${canPostAnnouncements() ? `
@@ -733,20 +760,24 @@ function renderAnnouncements(){
     <div class="card section">
       <h2>公告清單</h2>
       <div class="list">
-        ${list.map(a => `
+        ${list.map(a => {
+          const isRead = announcementReadByCurrentUser(a);
+          const publishDate = formatAnnouncementDate(a);
+          return `
           <div class="item">
-            <div class="row" style="justify-content:space-between;align-items:flex-start">
+            <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px">
               <div>
                 <div style="font-size:18px;font-weight:800">${escapeHtml(a.title)}</div>
-                <div class="small muted">${escapeHtml(a.createdByName||"")}</div>
+                <div class="small muted">${escapeHtml(a.createdByName||"")}｜${escapeHtml(publishDate || "未提供日期")}｜${a.targetStoreId ? escapeHtml(storeNameById(a.targetStoreId)) : "全店"}</div>
               </div>
               <div class="row">
-                <div class="chip">${a.targetStoreId ? escapeHtml(a.targetStoreId+"店") : "全店"}</div>
+                <button class="btn ${isRead ? "secondary" : "primary"}" onclick="toggleAnnouncementReadStatusFromUI('${a.id}', ${isRead ? 'false' : 'true'})">${isRead ? "取消已讀" : "已讀"}</button>
                 ${canPostAnnouncements() ? `<button class="btn danger" onclick="deleteAnnouncementFromUI('${a.id}')">刪除</button>` : ""}
               </div>
             </div>
             <div style="margin-top:10px;line-height:1.8">${highlightText(a.content,state.searchText)}</div>
-          </div>`).join("")}
+          </div>`;
+        }).join("")}
       </div>
     </div>
   </div>`;
@@ -898,7 +929,7 @@ function renderApp(root){
         ${canManageUsers() ? `<button class="navbtn ${state.tab==="users"?"active":""}" onclick="switchTab('users')">帳號</button>` : ""}
         <div style="height:14px"></div>
         <div class="okbox small">
-          版本 B4.4.4 已啟用：<br>
+          版本 B4.4.5 已啟用：<br>
           ・角色中文顯示<br>
           ・角色儲存修正<br>
           ・帳號頁操作優化<br>
@@ -906,7 +937,8 @@ function renderApp(root){
           ・密碼重設
           ・店名輸入不卡頓
           ・店家管理
-          ・公告不跳窗，改側邊提醒
+          ・公告不跳窗，改側邊提醒<br>
+          ・公告已讀鍵 / 發佈日期 / 寶慶店名同步
         </div>
       </div>
       <div class="content">${main}</div>
@@ -1007,6 +1039,7 @@ window.deleteItemFromUI = deleteItem;
 window.toggleReadStatusFromUI = toggleReadStatus;
 window.addAnnouncementFromUI = addAnnouncement;
 window.deleteAnnouncementFromUI = deleteAnnouncement;
+window.toggleAnnouncementReadStatusFromUI = toggleAnnouncementReadStatus;
 window.switchTab = tab => setState({tab});
 window.resetFiltersFromUI = () => setState({searchText:"",formsStatusFilter:"",historyStatusFilter:"",selectedDate:today(),selectedShift:"",selectedStore:canViewAllStores()?"A":(profileStoreId(state.profile)||"A")});
 window.setFormsStatusFilterFromUI = status => setState({formsStatusFilter:status,tab:"forms"});
