@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>系統｜版本B4.4.6</title>
+  <title>系統｜版本B4.4.7</title>
   <style>
     :root{
       --bg:#f4f6fb; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb;
@@ -527,7 +527,7 @@ function renderLogin(root){
       <div class="card weather-hero">
         <div class="weather-row">
           <div>
-            <div class="badge" style="background:rgba(255,255,255,.16);color:#fff">B4.4.6</div>
+            <div class="badge" style="background:rgba(255,255,255,.16);color:#fff">B4.4.7</div>
             <div style="height:14px"></div>
             <div class="weather-city">今日天氣資訊</div>
             <div class="weather-desc">${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,"0")}/${String(now.getDate()).padStart(2,"0")}（週${weekdays[now.getDay()]}）　${hh}:${mm}</div>
@@ -543,14 +543,13 @@ function renderLogin(root){
         <div class="weather-mini">
           <div class="mini"><div class="label">降雨機率</div><div class="value">20%</div></div>
           <div class="mini"><div class="label">相對濕度</div><div class="value">68%</div></div>
-          <div class="mini"><div class="label">舒適提醒</div><div class="value" style="font-size:18px">留意交接</div></div>
+          <div class="mini"><div class="label">舒適提醒</div><div class="value" style="font-size:18px">舒適宜人</div></div>
         </div>
       </div>
       <div class="card login-panel">
         <div class="head">
           <div>
             <div class="title" style="font-size:30px">入口</div>
-            
           </div>
           <div class="badge">內部使用</div>
         </div>
@@ -565,30 +564,10 @@ function renderLogin(root){
         </div>
         ${state.loginError ? `<div class="warnbox">${escapeHtml(state.loginError)}</div>` : ""}
         <div class="row">
-          <button class="btn primary" style="flex:1" onclick="loginFromUI()">員工登入</button>
+          <button class="btn primary" style="flex:1" onclick="loginFromUI()">登入</button>
           <button class="btn secondary" style="flex:1" onclick="resetPasswordFromUI()">忘記密碼</button>
         </div>
         <div class="weather-note small">首頁為公開資訊樣式；實際交接、帳號、歷史與管理功能皆需登入後使用。</div>
-      </div>
-    </div>
-    <div class="public-grid">
-      <div class="card section">
-        <h2>今日看板</h2>
-        <div class="portal-grid">
-          <div class="card portal-box"><h3>營運提醒</h3><div class="muted">值班前確認交接事項與未完成追蹤。</div></div>
-          <div class="card portal-box"><h3>天氣建議</h3><div class="muted">外勤與接駁請留意午後氣候變化與雨具準備。</div></div>
-          <div class="card portal-box"><h3>系統公告</h3><div class="muted">登入後可查看完整公告、店別資料與歷史記錄。</div></div>
-        </div>
-      </div>
-      <div class="card section">
-        <h2>帳號申請說明</h2>
-        <div class="okbox">建立新帳號功能已移除。請由管理員統一建立帳號後，再將登入資訊發給人員使用。</div>
-        <div style="height:12px"></div>
-        <div class="portal-grid">
-          <div class="card portal-box"><h3>帳號建立</h3><div class="muted">由管理員建立員工帳號，避免自行註冊造成權限混亂。</div></div>
-          <div class="card portal-box"><h3>登入方式</h3><div class="muted">收到管理員提供的 Email 與密碼後，從右上方入口登入。</div></div>
-          <div class="card portal-box"><h3>忘記密碼</h3><div class="muted">若忘記密碼，可使用忘記密碼功能，或聯絡管理員協助重設。</div></div>
-        </div>
       </div>
     </div>
   </div>`;
@@ -929,7 +908,7 @@ function renderApp(root){
         ${canManageUsers() ? `<button class="navbtn ${state.tab==="users"?"active":""}" onclick="switchTab('users')">帳號</button>` : ""}
         <div style="height:14px"></div>
         <div class="okbox small">
-          版本 B4.4.6 已啟用：<br>
+          版本 B4.4.7 已啟用：<br>
           ・角色中文顯示<br>
           ・角色儲存修正<br>
           ・帳號頁操作優化<br>
